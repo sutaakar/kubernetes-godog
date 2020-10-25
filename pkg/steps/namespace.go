@@ -16,9 +16,11 @@ func RegisterNamespaceSteps(ctx *godog.ScenarioContext) {
 	ctx.Step(`^namespace ([a-z0-9-]+) exists$`, namespaceExists)
 	ctx.Step(`^namespace ([a-z0-9-]+) doesn't exist$`, namespaceDoesntExist)
 	ctx.Step(`^delete namespace ([a-z0-9-]+)$`, deleteNamespace)
+	ctx.Step(`^delete namespace$`, deleteActiveNamespace)
 }
 
 func createNamespace(namespaceName string) error {
+	Context.ActiveNamespace = namespaceName
 	ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespaceName}}
 	return create(ns)
 }
@@ -44,6 +46,10 @@ func namespaceDoesntExist(namespaceName string) error {
 func deleteNamespace(namespaceName string) error {
 	ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespaceName}}
 	return delete(ns)
+}
+
+func deleteActiveNamespace() error {
+	return deleteNamespace(Context.ActiveNamespace)
 }
 
 // ### Utility methods
