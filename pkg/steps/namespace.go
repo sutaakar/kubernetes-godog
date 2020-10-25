@@ -1,7 +1,6 @@
 package steps
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/cucumber/godog"
@@ -21,7 +20,7 @@ func RegisterNamespaceSteps(ctx *godog.ScenarioContext) {
 
 func createNamespace(namespaceName string) error {
 	ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespaceName}}
-	return getClient().Create(context.TODO(), ns)
+	return create(ns)
 }
 
 func namespaceExists(namespaceName string) error {
@@ -44,14 +43,14 @@ func namespaceDoesntExist(namespaceName string) error {
 
 func deleteNamespace(namespaceName string) error {
 	ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespaceName}}
-	return getClient().Delete(context.TODO(), ns)
+	return delete(ns)
 }
 
 // ### Utility methods
 
 func getNamespace(namespaceName string) (*corev1.Namespace, error) {
 	ns := &corev1.Namespace{}
-	err := getClient().Get(context.TODO(), types.NamespacedName{Name: namespaceName}, ns)
+	err := get(types.NamespacedName{Name: namespaceName}, ns)
 
 	if apierrors.IsNotFound(err) {
 		return nil, nil

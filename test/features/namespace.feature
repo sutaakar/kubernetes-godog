@@ -1,8 +1,9 @@
 Feature: Namespace tests
 
   Scenario: Create specific namespace
-    When namespace namespace-test doesn't exist
+    Given namespace namespace-test doesn't exist
 
-    Then create namespace namespace-test
-    And namespace namespace-test exists
+    When create namespace namespace-test
+
+    Then namespace namespace-test exists
     And delete namespace namespace-test

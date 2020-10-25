@@ -1,16 +1,18 @@
 package steps
 
 import (
+	"context"
 	"fmt"
 	"os"
 
+	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
 var k8sClient client.Client
 
-func getClient() client.Client {
+func init() {
 	if k8sClient == nil {
 		config := config.GetConfigOrDie()
 		// Adjust config values to reduce throttling
@@ -24,5 +26,19 @@ func getClient() client.Client {
 			os.Exit(1)
 		}
 	}
-	return k8sClient
+}
+
+// Retrieves object based on a given key identifier
+func get(key client.ObjectKey, object runtime.Object) error {
+	return k8sClient.Get(context.TODO(), key, object)
+}
+
+// Creates object using options if provided
+func create(object runtime.Object, opts ...client.CreateOption) error {
+	return k8sClient.Create(context.TODO(), object, opts...)
+}
+
+// Deletes object using options if provided
+func delete(object runtime.Object, opts ...client.DeleteOption) error {
+	return k8sClient.Delete(context.TODO(), object, opts...)
 }
