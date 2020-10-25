@@ -15,6 +15,7 @@ func RegisterNamespaceSteps(ctx *godog.ScenarioContext) {
 	ctx.Step(`^create namespace ([a-z0-9-]+)$`, createNamespace)
 	ctx.Step(`^namespace ([a-z0-9-]+) exists$`, namespaceExists)
 	ctx.Step(`^namespace ([a-z0-9-]+) doesn't exist$`, namespaceDoesntExist)
+	ctx.Step(`^namespace is in state ([a-zA-Z]+)$`, namespaceIsInState)
 	ctx.Step(`^delete namespace ([a-z0-9-]+)$`, deleteNamespace)
 	ctx.Step(`^delete namespace$`, deleteActiveNamespace)
 }
@@ -26,19 +27,27 @@ func createNamespace(namespaceName string) error {
 }
 
 func namespaceExists(namespaceName string) error {
-	if ns, err := getNamespace(namespaceName); err != nil {
+	if _, err := getNamespace(namespaceName); err != nil {
 		return err
-	} else if ns == nil {
-		return fmt.Errorf("Namespace %s not found", namespaceName)
 	}
 	return nil
 }
 
 func namespaceDoesntExist(namespaceName string) error {
-	if ns, err := getNamespace(namespaceName); err != nil {
+	if _, err := getNamespace(namespaceName); err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
 		return err
-	} else if ns != nil {
-		return fmt.Errorf("Namespace %s found", namespaceName)
+	}
+	return fmt.Errorf("Namespace %s found", namespaceName)
+}
+
+func namespaceIsInState(namespacePhase string) error {
+	if ns, err := getNamespace(Context.ActiveNamespace); err != nil {
+		return err
+	} else if ns.Status.Phase != corev1.NamespacePhase(namespacePhase) {
+		return fmt.Errorf("Expected namespace phase %s, but got %s", namespacePhase, ns.Status.Phase)
 	}
 	return nil
 }
@@ -58,8 +67,5 @@ func getNamespace(namespaceName string) (*corev1.Namespace, error) {
 	ns := &corev1.Namespace{}
 	err := get(types.NamespacedName{Name: namespaceName}, ns)
 
-	if apierrors.IsNotFound(err) {
-		return nil, nil
-	}
 	return ns, err
 }
