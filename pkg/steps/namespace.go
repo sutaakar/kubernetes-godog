@@ -10,20 +10,30 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-// RegisterNamespaceSteps registers all steps related to namespace operations
-func RegisterNamespaceSteps(ctx *godog.ScenarioContext) {
-	ctx.Step(`^create namespace ([a-z0-9-]+)$`, createNamespace)
-	ctx.Step(`^namespace ([a-z0-9-]+) exists$`, namespaceExists)
-	ctx.Step(`^namespace ([a-z0-9-]+) doesn't exist$`, namespaceDoesntExist)
-	ctx.Step(`^namespace is in state ([a-zA-Z]+)$`, namespaceIsInState)
-	ctx.Step(`^delete namespace ([a-z0-9-]+)$`, deleteNamespace)
-	ctx.Step(`^delete namespace$`, deleteActiveNamespace)
+// NamespaceContext carries contextual information related to namespace step execution and results
+type NamespaceContext struct {
+	// ActiveNamespace stores latest created or used namespace
+	ActiveNamespace string
 }
 
-func createNamespace(namespaceName string) error {
-	Context.ActiveNamespace = namespaceName
-	ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespaceName}}
-	return create(ns)
+// RegisterNamespaceSteps registers all steps related to namespace operations
+func RegisterNamespaceSteps(ctx *godog.ScenarioContext) *NamespaceContext {
+	context := &NamespaceContext{}
+	ctx.Step(`^create namespace ([a-z0-9-]+)$`, createNamespace(context))
+	ctx.Step(`^namespace ([a-z0-9-]+) exists$`, namespaceExists)
+	ctx.Step(`^namespace ([a-z0-9-]+) doesn't exist$`, namespaceDoesntExist)
+	ctx.Step(`^namespace is in state ([a-zA-Z]+)$`, namespaceIsInState(context))
+	ctx.Step(`^delete namespace ([a-z0-9-]+)$`, deleteNamespace)
+	ctx.Step(`^delete namespace$`, deleteActiveNamespace(context))
+	return context
+}
+
+func createNamespace(context *NamespaceContext) func(string) error {
+	return func(namespaceName string) error {
+		context.ActiveNamespace = namespaceName
+		ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespaceName}}
+		return create(ns)
+	}
 }
 
 func namespaceExists(namespaceName string) error {
@@ -43,13 +53,15 @@ func namespaceDoesntExist(namespaceName string) error {
 	return fmt.Errorf("Namespace %s found", namespaceName)
 }
 
-func namespaceIsInState(namespacePhase string) error {
-	if ns, err := getNamespace(Context.ActiveNamespace); err != nil {
-		return err
-	} else if ns.Status.Phase != corev1.NamespacePhase(namespacePhase) {
-		return fmt.Errorf("Expected namespace phase %s, but got %s", namespacePhase, ns.Status.Phase)
+func namespaceIsInState(context *NamespaceContext) func(string) error {
+	return func(namespacePhase string) error {
+		if ns, err := getNamespace(context.ActiveNamespace); err != nil {
+			return err
+		} else if ns.Status.Phase != corev1.NamespacePhase(namespacePhase) {
+			return fmt.Errorf("Expected namespace phase %s, but got %s", namespacePhase, ns.Status.Phase)
+		}
+		return nil
 	}
-	return nil
 }
 
 func deleteNamespace(namespaceName string) error {
@@ -57,8 +69,10 @@ func deleteNamespace(namespaceName string) error {
 	return delete(ns)
 }
 
-func deleteActiveNamespace() error {
-	return deleteNamespace(Context.ActiveNamespace)
+func deleteActiveNamespace(context *NamespaceContext) func() error {
+	return func() error {
+		return deleteNamespace(context.ActiveNamespace)
+	}
 }
 
 // ### Utility methods
