@@ -12,6 +12,15 @@ Feature: Namespace tests
 
 #####
 
+  Scenario: Create generated namespace
+    When create namespace
+
+    Then namespace is in state Active
+    And delete namespace
+    And namespace is in state Terminating
+
+#####
+
   Scenario: Delete contextual namespace
     Given namespace contextual-namespace-test doesn't exist
     And create namespace contextual-namespace-test

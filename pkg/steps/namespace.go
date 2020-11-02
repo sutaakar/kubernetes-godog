@@ -28,8 +28,25 @@ func RegisterNamespaceSteps(ctx *godog.ScenarioContext) *NamespaceContext {
 	return context
 }
 
+// RegisterGeneratedNamespaceSteps registers all steps related to generated namespace operations
+func RegisterGeneratedNamespaceSteps(ctx *godog.ScenarioContext, generateNamespaceName func() string) *NamespaceContext {
+	// Contains all usual namespace steps
+	context := RegisterNamespaceSteps(ctx)
+	ctx.Step(`^create namespace$`, createNamespaceWithGeneratedName(context, generateNamespaceName))
+	return context
+}
+
 func createNamespace(context *NamespaceContext) func(string) error {
 	return func(namespaceName string) error {
+		context.ActiveNamespace = namespaceName
+		ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespaceName}}
+		return create(ns)
+	}
+}
+
+func createNamespaceWithGeneratedName(context *NamespaceContext, generateNamespaceName func() string) func() error {
+	return func() error {
+		namespaceName := generateNamespaceName()
 		context.ActiveNamespace = namespaceName
 		ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespaceName}}
 		return create(ns)
