@@ -22,7 +22,7 @@ func RegisterNamespaceSteps(ctx *godog.ScenarioContext) *NamespaceContext {
 	ctx.Step(`^create namespace ([a-z0-9-]+)$`, createNamespace(context))
 	ctx.Step(`^namespace ([a-z0-9-]+) exists$`, namespaceExists)
 	ctx.Step(`^namespace ([a-z0-9-]+) doesn't exist$`, namespaceDoesntExist)
-	ctx.Step(`^namespace is in state ([a-zA-Z]+)$`, namespaceIsInState(context))
+	ctx.Step(`^namespace is in ([a-zA-Z]+) state$`, namespaceIsInState(context))
 	ctx.Step(`^delete namespace ([a-z0-9-]+)$`, deleteNamespace)
 	ctx.Step(`^delete namespace$`, deleteActiveNamespace(context))
 	return context
