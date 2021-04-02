@@ -13,5 +13,5 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 		namespaceCounter++
 		return "namespace-test-" + strconv.Itoa(namespaceCounter)
 	}
-	steps.RegisterGeneratedNamespaceSteps(ctx, namespaceNameGenerator)
+	steps.Builder().WithNamespaceNameGenerator(namespaceNameGenerator).RegisterSteps(ctx)
 }

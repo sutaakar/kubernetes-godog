@@ -11,7 +11,7 @@ Currently there are specified just namespace steps, more steps will come.
 Register steps in InitializeScenario:
 ```go
 func InitializeScenario(ctx *godog.ScenarioContext) {
-	steps.RegisterNamespaceSteps(ctx)
+	steps.Builder().RegisterSteps(ctx)
 }
 ```
 

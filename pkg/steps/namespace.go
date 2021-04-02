@@ -1,6 +1,7 @@
 package steps
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/cucumber/godog"
@@ -13,43 +14,59 @@ import (
 // NamespaceContext carries contextual information related to namespace step execution and results
 type NamespaceContext struct {
 	// ActiveNamespace stores latest created or used namespace
-	ActiveNamespace string
+	ActiveNamespace          string
+	createNamespaceListeners [](func(createdNamespace string))
+	deleteNamespaceListeners [](func(deletedNamespace string))
+	namespaceNameGenerator   func() string
 }
 
 // RegisterNamespaceSteps registers all steps related to namespace operations
-func RegisterNamespaceSteps(ctx *godog.ScenarioContext) *NamespaceContext {
-	context := &NamespaceContext{}
+func RegisterNamespaceSteps(ctx *godog.ScenarioContext, context *NamespaceContext) {
 	ctx.Step(`^create namespace ([a-z0-9-]+)$`, createNamespace(context))
+	ctx.Step(`^create namespace$`, createNamespaceWithGeneratedName(context))
 	ctx.Step(`^namespace ([a-z0-9-]+) exists$`, namespaceExists)
 	ctx.Step(`^namespace ([a-z0-9-]+) doesn't exist$`, namespaceDoesntExist)
 	ctx.Step(`^namespace is in ([a-zA-Z]+) state$`, namespaceIsInState(context))
-	ctx.Step(`^delete namespace ([a-z0-9-]+)$`, deleteNamespace)
+	ctx.Step(`^delete namespace ([a-z0-9-]+)$`, deleteNamespace(context))
 	ctx.Step(`^delete namespace$`, deleteActiveNamespace(context))
-	return context
-}
-
-// RegisterGeneratedNamespaceSteps registers all steps related to generated namespace operations
-func RegisterGeneratedNamespaceSteps(ctx *godog.ScenarioContext, generateNamespaceName func() string) *NamespaceContext {
-	// Contains all usual namespace steps
-	context := RegisterNamespaceSteps(ctx)
-	ctx.Step(`^create namespace$`, createNamespaceWithGeneratedName(context, generateNamespaceName))
-	return context
 }
 
 func createNamespace(context *NamespaceContext) func(string) error {
 	return func(namespaceName string) error {
 		context.ActiveNamespace = namespaceName
 		ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespaceName}}
-		return create(ns)
+
+		if err := create(ns); err != nil {
+			return err
+		}
+
+		for _, listener := range context.createNamespaceListeners {
+			listener(namespaceName)
+		}
+
+		return nil
 	}
 }
 
-func createNamespaceWithGeneratedName(context *NamespaceContext, generateNamespaceName func() string) func() error {
+func createNamespaceWithGeneratedName(context *NamespaceContext) func() error {
 	return func() error {
-		namespaceName := generateNamespaceName()
+		if context.namespaceNameGenerator == nil {
+			return errors.New("Namespace name generator not specified. Please provide a namespace name generator")
+		}
+
+		namespaceName := context.namespaceNameGenerator()
 		context.ActiveNamespace = namespaceName
 		ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespaceName}}
-		return create(ns)
+
+		if err := create(ns); err != nil {
+			return err
+		}
+
+		for _, listener := range context.createNamespaceListeners {
+			listener(namespaceName)
+		}
+
+		return nil
 	}
 }
 
@@ -81,14 +98,25 @@ func namespaceIsInState(context *NamespaceContext) func(string) error {
 	}
 }
 
-func deleteNamespace(namespaceName string) error {
-	ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespaceName}}
-	return delete(ns)
+func deleteNamespace(context *NamespaceContext) func(string) error {
+	return func(namespaceName string) error {
+		ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespaceName}}
+
+		if err := delete(ns); err != nil {
+			return err
+		}
+
+		for _, listener := range context.deleteNamespaceListeners {
+			listener(namespaceName)
+		}
+
+		return nil
+	}
 }
 
 func deleteActiveNamespace(context *NamespaceContext) func() error {
 	return func() error {
-		return deleteNamespace(context.ActiveNamespace)
+		return deleteNamespace(context)(context.ActiveNamespace)
 	}
 }
 
