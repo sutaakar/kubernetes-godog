@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/cucumber/godog"
+	"github.com/sutaakar/kubernetes-godog/pkg/core"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -31,7 +32,7 @@ func RegisterNamespaceSteps(ctx *godog.ScenarioContext, context *NamespaceContex
 func createNamespace(context *NamespaceContext) func(string) error {
 	return func(namespaceName string) error {
 		context.ActiveNamespace = namespaceName
-		if err := CreateNamespace(namespaceName); err != nil {
+		if err := core.CreateNamespace(namespaceName); err != nil {
 			return err
 		}
 
@@ -51,7 +52,7 @@ func createNamespaceWithGeneratedName(context *NamespaceContext) func() error {
 
 		namespaceName := context.namespaceNameGenerator()
 		context.ActiveNamespace = namespaceName
-		if err := CreateNamespace(namespaceName); err != nil {
+		if err := core.CreateNamespace(namespaceName); err != nil {
 			return err
 		}
 
@@ -64,7 +65,7 @@ func createNamespaceWithGeneratedName(context *NamespaceContext) func() error {
 }
 
 func namespaceExists(namespaceName string) error {
-	exists, err := IsNamespaceExists(namespaceName)
+	exists, err := core.IsNamespaceExists(namespaceName)
 	if err != nil {
 		return err
 	}
@@ -75,7 +76,7 @@ func namespaceExists(namespaceName string) error {
 }
 
 func namespaceDoesntExist(namespaceName string) error {
-	exists, err := IsNamespaceExists(namespaceName)
+	exists, err := core.IsNamespaceExists(namespaceName)
 	if err != nil {
 		return err
 	}
@@ -87,7 +88,7 @@ func namespaceDoesntExist(namespaceName string) error {
 
 func namespaceIsInState(context *NamespaceContext) func(string) error {
 	return func(namespacePhase string) error {
-		if ns, err := GetNamespace(context.ActiveNamespace); err != nil {
+		if ns, err := core.GetNamespace(context.ActiveNamespace); err != nil {
 			return err
 		} else if ns.Status.Phase != corev1.NamespacePhase(namespacePhase) {
 			return fmt.Errorf("Expected namespace phase %s, but got %s", namespacePhase, ns.Status.Phase)
@@ -98,7 +99,7 @@ func namespaceIsInState(context *NamespaceContext) func(string) error {
 
 func deleteNamespace(context *NamespaceContext) func(string) error {
 	return func(namespaceName string) error {
-		if err := DeleteNamespace(namespaceName); err != nil {
+		if err := core.DeleteNamespace(namespaceName); err != nil {
 			return err
 		}
 
@@ -112,6 +113,9 @@ func deleteNamespace(context *NamespaceContext) func(string) error {
 
 func deleteActiveNamespace(context *NamespaceContext) func() error {
 	return func() error {
+		if len(context.ActiveNamespace) == 0 {
+			return fmt.Errorf("Active namespace not defined")
+		}
 		return deleteNamespace(context)(context.ActiveNamespace)
 	}
 }

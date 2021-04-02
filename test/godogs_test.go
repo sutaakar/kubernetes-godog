@@ -4,7 +4,7 @@ import (
 	"strconv"
 
 	"github.com/cucumber/godog"
-	"github.com/sutaakar/kubernetes-godog/pkg/steps"
+	"github.com/sutaakar/kubernetes-godog/steps"
 )
 
 func InitializeScenario(ctx *godog.ScenarioContext) {

@@ -1,4 +1,4 @@
-package steps
+package core
 
 import (
 	"context"
@@ -25,6 +25,11 @@ func getClient() client.Client {
 		}
 	}
 	return k8sClient
+}
+
+// SetClient used for test purposes or in case when custom client is needed to be provided
+func SetClient(client client.Client) {
+	k8sClient = client
 }
 
 // Retrieves object based on a given key identifier
