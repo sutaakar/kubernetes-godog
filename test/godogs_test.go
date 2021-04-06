@@ -4,7 +4,7 @@ import (
 	"strconv"
 
 	"github.com/cucumber/godog"
-	"github.com/sutaakar/kubernetes-godog/steps"
+	cloudog "github.com/sutaakar/kubernetes-godog"
 )
 
 func InitializeScenario(ctx *godog.ScenarioContext) {
@@ -13,5 +13,5 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 		namespaceCounter++
 		return "namespace-test-" + strconv.Itoa(namespaceCounter)
 	}
-	steps.Builder().WithNamespaceNameGenerator(namespaceNameGenerator).RegisterSteps(ctx)
+	cloudog.Builder().WithNamespaceNameGenerator(namespaceNameGenerator).RegisterSteps(ctx)
 }

@@ -1,6 +1,9 @@
 package steps
 
-import "github.com/cucumber/godog"
+import (
+	"github.com/cucumber/godog"
+	"github.com/sutaakar/kubernetes-godog/steps"
+)
 
 // KubernetesStepsBuilder builder for Kubernetes steps
 type KubernetesStepsBuilder struct {
@@ -35,5 +38,5 @@ func (builder *KubernetesStepsBuilder) WithNamespaceNameGenerator(generator func
 // RegisterSteps register Kubernetes steps
 func (builder *KubernetesStepsBuilder) RegisterSteps(ctx *godog.ScenarioContext) {
 	//activeNamespace := RegisterNamespaceSteps(ctx, builder.createNamespaceListeners, builder.deleteNamespaceListeners, builder.namespaceNameGenerator)
-	RegisterNamespaceSteps(ctx, builder.createNamespaceListeners, builder.deleteNamespaceListeners, builder.namespaceNameGenerator)
+	steps.RegisterNamespaceSteps(ctx, builder.createNamespaceListeners, builder.deleteNamespaceListeners, builder.namespaceNameGenerator)
 }
