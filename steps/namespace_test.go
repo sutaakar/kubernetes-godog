@@ -12,9 +12,8 @@ import (
 func Test_createNamespace(t *testing.T) {
 	core.SetClient(fake.NewFakeClient())
 
-	context := &NamespaceContext{}
-
-	err := createNamespace(context)("test")
+	activeNamespace := ""
+	err := createNamespace(&activeNamespace, nil)("test")
 	if err != nil {
 		t.Errorf("Error creating namespace 'test' : %v", err)
 	}
@@ -27,8 +26,8 @@ func Test_createNamespace(t *testing.T) {
 		t.Error("Namespace 'test' should exist, but it is not found")
 	}
 
-	if context.ActiveNamespace != "test" {
-		t.Errorf("Active namespace contains wrong value: %s, expected to contain 'test'", context.ActiveNamespace)
+	if activeNamespace != "test" {
+		t.Errorf("Active namespace contains wrong value: %s, expected to contain 'test'", activeNamespace)
 	}
 }
 
@@ -36,11 +35,10 @@ func Test_createNamespaceWithListener(t *testing.T) {
 	core.SetClient(fake.NewFakeClient())
 
 	namespaceProvidedInListener := ""
-	context := &NamespaceContext{
-		createNamespaceListeners: []func(createdNamespace string){func(createdNamespace string) { namespaceProvidedInListener = createdNamespace }},
-	}
+	activeNamespace := ""
+	createNamespaceListeners := []func(createdNamespace string){func(createdNamespace string) { namespaceProvidedInListener = createdNamespace }}
 
-	err := createNamespace(context)("test")
+	err := createNamespace(&activeNamespace, createNamespaceListeners)("test")
 	if err != nil {
 		t.Errorf("Error creating namespace 'test' : %v", err)
 	}
@@ -62,9 +60,9 @@ func Test_createDuplicitNamespace(t *testing.T) {
 	namespace := &corev1.Namespace{ObjectMeta: v1.ObjectMeta{Name: "test"}}
 	core.SetClient(fake.NewFakeClient(namespace))
 
-	context := &NamespaceContext{}
+	activeNamespace := ""
 
-	err := createNamespace(context)("test")
+	err := createNamespace(&activeNamespace, nil)("test")
 	if err == nil {
 		t.Error("Namespace creation should fail as there is already namespace with same name available")
 	}
@@ -73,11 +71,10 @@ func Test_createDuplicitNamespace(t *testing.T) {
 func Test_createNamespaceWithGeneratedName(t *testing.T) {
 	core.SetClient(fake.NewFakeClient())
 
-	context := &NamespaceContext{
-		namespaceNameGenerator: func() string { return "generated-test" },
-	}
+	activeNamespace := ""
+	namespaceNameGenerator := func() string { return "generated-test" }
 
-	err := createNamespaceWithGeneratedName(context)()
+	err := createNamespaceWithGeneratedName(&activeNamespace, nil, namespaceNameGenerator)()
 	if err != nil {
 		t.Errorf("Error creating namespace: %v", err)
 	}
@@ -90,17 +87,17 @@ func Test_createNamespaceWithGeneratedName(t *testing.T) {
 		t.Error("Namespace 'generated-test' should exist, but it is not found")
 	}
 
-	if context.ActiveNamespace != "generated-test" {
-		t.Errorf("Active namespace contains wrong value: %s, expected to contain 'test'", context.ActiveNamespace)
+	if activeNamespace != "generated-test" {
+		t.Errorf("Active namespace contains wrong value: %s, expected to contain 'test'", activeNamespace)
 	}
 }
 
 func Test_createNamespaceWithGeneratedNameNoGenerator(t *testing.T) {
 	core.SetClient(fake.NewFakeClient())
 
-	context := &NamespaceContext{}
+	activeNamespace := ""
 
-	err := createNamespaceWithGeneratedName(context)()
+	err := createNamespaceWithGeneratedName(&activeNamespace, nil, nil)()
 	if err == nil {
 		t.Error("Should throw an error as namespace generator is not available")
 	}
@@ -109,14 +106,14 @@ func Test_createNamespaceWithGeneratedNameNoGenerator(t *testing.T) {
 func Test_namespaceExists(t *testing.T) {
 	core.SetClient(fake.NewFakeClient())
 
-	context := &NamespaceContext{}
+	activeNamespace := ""
 
 	err := namespaceExists("test")
 	if err == nil {
 		t.Error("Namespace 'test' shouldn't exist")
 	}
 
-	err = createNamespace(context)("test")
+	err = createNamespace(&activeNamespace, nil)("test")
 	if err != nil {
 		t.Errorf("Error creating namespace 'test' : %v", err)
 	}
@@ -130,14 +127,14 @@ func Test_namespaceExists(t *testing.T) {
 func Test_namespaceDoesntExist(t *testing.T) {
 	core.SetClient(fake.NewFakeClient())
 
-	context := &NamespaceContext{}
+	activeNamespace := ""
 
 	err := namespaceDoesntExist("test")
 	if err != nil {
 		t.Error("Namespace 'test' shouldn't exist")
 	}
 
-	err = createNamespace(context)("test")
+	err = createNamespace(&activeNamespace, nil)("test")
 	if err != nil {
 		t.Errorf("Error creating namespace 'test' : %v", err)
 	}
@@ -157,11 +154,9 @@ func Test_namespaceIsInState(t *testing.T) {
 	}
 	core.SetClient(fake.NewFakeClient(namespace))
 
-	context := &NamespaceContext{
-		ActiveNamespace: "test",
-	}
+	activeNamespace := "test"
 
-	err := namespaceIsInState(context)(string(corev1.NamespaceActive))
+	err := namespaceIsInState(&activeNamespace)(string(corev1.NamespaceActive))
 	if err != nil {
 		t.Errorf("Failed checking of namespace state: %v", err)
 	}
@@ -173,9 +168,7 @@ func Test_deleteNamespace(t *testing.T) {
 	}
 	core.SetClient(fake.NewFakeClient(namespace))
 
-	context := &NamespaceContext{}
-
-	err := deleteNamespace(context)("test")
+	err := deleteNamespace(nil)("test")
 	if err != nil {
 		t.Errorf("Failed deleting namespace: %v", err)
 	}
@@ -188,11 +181,9 @@ func Test_deleteNamespaceWithListener(t *testing.T) {
 	core.SetClient(fake.NewFakeClient(namespace))
 
 	namespaceProvidedInListener := ""
-	context := &NamespaceContext{
-		deleteNamespaceListeners: []func(deletedNamespace string){func(deletedNamespace string) { namespaceProvidedInListener = deletedNamespace }},
-	}
+	deleteNamespaceListeners := []func(deletedNamespace string){func(deletedNamespace string) { namespaceProvidedInListener = deletedNamespace }}
 
-	err := deleteNamespace(context)("test")
+	err := deleteNamespace(deleteNamespaceListeners)("test")
 	if err != nil {
 		t.Errorf("Failed deleting namespace: %v", err)
 	}
@@ -205,9 +196,7 @@ func Test_deleteNamespaceWithListener(t *testing.T) {
 func Test_deleteNamespaceNotExistingNamespace(t *testing.T) {
 	core.SetClient(fake.NewFakeClient())
 
-	context := &NamespaceContext{}
-
-	err := deleteNamespace(context)("test")
+	err := deleteNamespace(nil)("test")
 	if err == nil {
 		t.Error("Should throw an error as the namespace doesn't exist")
 	}
@@ -219,11 +208,9 @@ func Test_deleteActiveNamespace(t *testing.T) {
 	}
 	core.SetClient(fake.NewFakeClient(namespace))
 
-	context := &NamespaceContext{
-		ActiveNamespace: "test",
-	}
+	activeNamespace := "test"
 
-	err := deleteActiveNamespace(context)()
+	err := deleteActiveNamespace(&activeNamespace, nil)()
 	if err != nil {
 		t.Errorf("Failed checking of namespace state: %v", err)
 	}
@@ -235,9 +222,9 @@ func Test_deleteActiveNamespaceNoNamespaceActive(t *testing.T) {
 	}
 	core.SetClient(fake.NewFakeClient(namespace))
 
-	context := &NamespaceContext{}
+	activeNamespace := ""
 
-	err := deleteActiveNamespace(context)()
+	err := deleteActiveNamespace(&activeNamespace, nil)()
 	if err == nil {
 		t.Error("Should fail as active namespace is not defined")
 	}

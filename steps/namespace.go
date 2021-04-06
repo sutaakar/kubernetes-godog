@@ -9,34 +9,27 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// NamespaceContext carries contextual information related to namespace step execution and results
-type NamespaceContext struct {
-	// ActiveNamespace stores latest created or used namespace
-	ActiveNamespace          string
-	createNamespaceListeners [](func(createdNamespace string))
-	deleteNamespaceListeners [](func(deletedNamespace string))
-	namespaceNameGenerator   func() string
-}
-
 // RegisterNamespaceSteps registers all steps related to namespace operations
-func RegisterNamespaceSteps(ctx *godog.ScenarioContext, context *NamespaceContext) {
-	ctx.Step(`^create namespace ([a-z0-9-]+)$`, createNamespace(context))
-	ctx.Step(`^create namespace$`, createNamespaceWithGeneratedName(context))
+func RegisterNamespaceSteps(ctx *godog.ScenarioContext, createNamespaceListeners [](func(createdNamespace string)), deleteNamespaceListeners [](func(deletedNamespace string)), namespaceNameGenerator func() string) *string {
+	activeNamespace := ""
+	ctx.Step(`^create namespace ([a-z0-9-]+)$`, createNamespace(&activeNamespace, createNamespaceListeners))
+	ctx.Step(`^create namespace$`, createNamespaceWithGeneratedName(&activeNamespace, createNamespaceListeners, namespaceNameGenerator))
 	ctx.Step(`^namespace ([a-z0-9-]+) exists$`, namespaceExists)
 	ctx.Step(`^namespace ([a-z0-9-]+) doesn't exist$`, namespaceDoesntExist)
-	ctx.Step(`^namespace is in ([a-zA-Z]+) state$`, namespaceIsInState(context))
-	ctx.Step(`^delete namespace ([a-z0-9-]+)$`, deleteNamespace(context))
-	ctx.Step(`^delete namespace$`, deleteActiveNamespace(context))
+	ctx.Step(`^namespace is in ([a-zA-Z]+) state$`, namespaceIsInState(&activeNamespace))
+	ctx.Step(`^delete namespace ([a-z0-9-]+)$`, deleteNamespace(deleteNamespaceListeners))
+	ctx.Step(`^delete namespace$`, deleteActiveNamespace(&activeNamespace, deleteNamespaceListeners))
+	return &activeNamespace
 }
 
-func createNamespace(context *NamespaceContext) func(string) error {
+func createNamespace(activeNamespace *string, createNamespaceListeners [](func(createdNamespace string))) func(string) error {
 	return func(namespaceName string) error {
-		context.ActiveNamespace = namespaceName
+		*activeNamespace = namespaceName
 		if err := core.CreateNamespace(namespaceName); err != nil {
 			return err
 		}
 
-		for _, listener := range context.createNamespaceListeners {
+		for _, listener := range createNamespaceListeners {
 			listener(namespaceName)
 		}
 
@@ -44,19 +37,19 @@ func createNamespace(context *NamespaceContext) func(string) error {
 	}
 }
 
-func createNamespaceWithGeneratedName(context *NamespaceContext) func() error {
+func createNamespaceWithGeneratedName(activeNamespace *string, createNamespaceListeners [](func(createdNamespace string)), namespaceNameGenerator func() string) func() error {
 	return func() error {
-		if context.namespaceNameGenerator == nil {
+		if namespaceNameGenerator == nil {
 			return errors.New("Namespace name generator not specified. Please provide a namespace name generator")
 		}
 
-		namespaceName := context.namespaceNameGenerator()
-		context.ActiveNamespace = namespaceName
+		namespaceName := namespaceNameGenerator()
+		*activeNamespace = namespaceName
 		if err := core.CreateNamespace(namespaceName); err != nil {
 			return err
 		}
 
-		for _, listener := range context.createNamespaceListeners {
+		for _, listener := range createNamespaceListeners {
 			listener(namespaceName)
 		}
 
@@ -86,9 +79,9 @@ func namespaceDoesntExist(namespaceName string) error {
 	return nil
 }
 
-func namespaceIsInState(context *NamespaceContext) func(string) error {
+func namespaceIsInState(activeNamespace *string) func(string) error {
 	return func(namespacePhase string) error {
-		if ns, err := core.GetNamespace(context.ActiveNamespace); err != nil {
+		if ns, err := core.GetNamespace(*activeNamespace); err != nil {
 			return err
 		} else if ns.Status.Phase != corev1.NamespacePhase(namespacePhase) {
 			return fmt.Errorf("Expected namespace phase %s, but got %s", namespacePhase, ns.Status.Phase)
@@ -97,13 +90,13 @@ func namespaceIsInState(context *NamespaceContext) func(string) error {
 	}
 }
 
-func deleteNamespace(context *NamespaceContext) func(string) error {
+func deleteNamespace(deleteNamespaceListeners [](func(deletedNamespace string))) func(string) error {
 	return func(namespaceName string) error {
 		if err := core.DeleteNamespace(namespaceName); err != nil {
 			return err
 		}
 
-		for _, listener := range context.deleteNamespaceListeners {
+		for _, listener := range deleteNamespaceListeners {
 			listener(namespaceName)
 		}
 
@@ -111,11 +104,11 @@ func deleteNamespace(context *NamespaceContext) func(string) error {
 	}
 }
 
-func deleteActiveNamespace(context *NamespaceContext) func() error {
+func deleteActiveNamespace(activeNamespace *string, deleteNamespaceListeners [](func(deletedNamespace string))) func() error {
 	return func() error {
-		if len(context.ActiveNamespace) == 0 {
+		if len(*activeNamespace) == 0 {
 			return fmt.Errorf("Active namespace not defined")
 		}
-		return deleteNamespace(context)(context.ActiveNamespace)
+		return deleteNamespace(deleteNamespaceListeners)(*activeNamespace)
 	}
 }
