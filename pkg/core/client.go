@@ -13,12 +13,14 @@ var k8sClient client.Client
 
 func getClient() client.Client {
 	if k8sClient == nil {
-		config := config.GetConfigOrDie()
+		config, err := config.GetConfig()
+		if err != nil {
+			panic(fmt.Sprintf("failed to retrieve config: %v", err))
+		}
 		// Adjust config values to reduce throttling
 		config.QPS = 100.0
 		config.Burst = 150.0
 
-		var err error
 		k8sClient, err = client.New(config, client.Options{})
 		if err != nil {
 			panic(fmt.Sprintf("failed to create client %v", err))
